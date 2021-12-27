@@ -1,5 +1,20 @@
 # CRIME-poc
 
+---
+
+## Project setup update
+
+0. Uninstall pyenv if it's old
+1. Install pyenv (`curl https://pyenv.run | bash`)
+2. Install python 3.10.1 (`pyenv install 3.10.1` and `pyenv global 3.10.1`)
+3. Clone the repo and `cd` into it
+4. Create a virtual env (`python -m venv env`)
+5. Install dependencies (`python -m pip install -r requirements.txt`)
+6. Start a shell with the virtual env (`source env/bin/activate`)
+7. Test the exploits! (`python CRIME-cbc-poc.py`)
+
+---
+
 CRIME attack : a compression oracle attacks [CVE-2012-4929](https://cve.mitre.org/cgi-bin/cvename.cgi?name=cve-2012-4929) discovered by Juliano Rizzo and Thai Duong;
 
 > In a compression oracle attack the use of adaptive data compression on a mixture of chosen plaintext and unknown plaintext can result in content-sensitive changes in the length of the compressed text that can be detected even though the content of the compressed text itself is then encrypted. This can be used in protocol attacks to detect when the injected known plaintext is even partially similar to the unknown content of a secret part of the message, greatly reducing the complexity of a search for a match for the secret text. The CRIME and BREACH attacks are examples of protocol attacks using this phenomenon.
@@ -23,16 +38,16 @@ Many articles explain how the CRIME attack works, but this is the best explanati
 
 This attack is really not complex, the really interesting part is the implementation that is a bit different from the 'theory'.
 
-Let's check the naive method as described in the article, it's a good way to understand how it works : 
+Let's check the naive method as described in the article, it's a good way to understand how it works :
 
 The attacker can control request send by the client (using javascript for example). The goal is to retrieve secret cookie. The attacker sends multiple requests like this and check the length of the encrypted data :
 
-| Reques | length
-|---|---|
-| GET /cookie=  DATA cookie=quokkalight | **80** |
-| GET /cookie=a DATA cookie=quokkalight | 81 |
-| GET /cookie=b DATA cookie=quokkalight | 81 |
-| GET /cookie=. DATA cookie=quokkalight | 81 |
+| Reques                                    | length |
+| ----------------------------------------- | ------ |
+| GET /cookie= DATA cookie=quokkalight      | **80** |
+| GET /cookie=a DATA cookie=quokkalight     | 81     |
+| GET /cookie=b DATA cookie=quokkalight     | 81     |
+| GET /cookie=. DATA cookie=quokkalight     | 81     |
 | GET /cookie=**q** DATA cookie=quokkalight | **80** |
 
 Since `cookie=q` match `cookie=quokkalight` from the secret cookie, the length of the encrypted data will be the same and the attacker know he found a byte.
@@ -40,12 +55,12 @@ Since `cookie=q` match `cookie=quokkalight` from the secret cookie, the length o
 But this method failed some times and cannot be trusted so instead we will use another method.
 First we send a request with the char we want to find followed by multiple caracters that cannot be found in the initial request like some specials chars :`chr(i) + "#:/[@/&"`. Then we send a second request but we invert the payload like this: `"#:/[@/&" + chr(i)` and we compare the two length. If `len(enc(req1)) < len(enc(req2))` then we found a byte. This method is called: `two_tries` and it's a lot more reliable :
 
-| Request to retrieve  byte q | length
-|---|---|
-| GET /cookie=a~#:/[@/& DATA cookie=quokkalight | 81 |
-| GET /cookie=~#:/[@/&a DATA cookie=quokkalight | 81 |
-| GET /cookie=b~#:/[@/& DATA cookie=quokkalight | 81 |
-| GET /cookie=~#:/[@/&b DATA cookie=quokkalight | 81 |
+| Request to retrieve byte q                    | length |
+| --------------------------------------------- | ------ |
+| GET /cookie=a~#:/[@/& DATA cookie=quokkalight | 81     |
+| GET /cookie=~#:/[@/&a DATA cookie=quokkalight | 81     |
+| GET /cookie=b~#:/[@/& DATA cookie=quokkalight | 81     |
+| GET /cookie=~#:/[@/&b DATA cookie=quokkalight | 81     |
 | GET /cookie=q~#:/[@/& DATA cookie=quokkalight | **80** |
 | GET /cookie=~#:/[@/&q DATA cookie=quokkalight | **81** |
 
@@ -95,25 +110,25 @@ In the mode CBC, it's important to note that the payload `payload=rand` will pro
 
 Example :
 
-| block1 | block2 | block3 | length
-|---|---|---|---|
-| GET /cookie=  DA | TA cookie=quokka | light + PAD(11) | **48** |
-| GET /cookie=a DA | TA cookie=quokka | light + PAD(10) | **48** |
-| GET /cookie=b DA | TA cookie=quokka | light + PAD(10) | **48** |
-| GET /cookie=. DA | TA cookie=quokka | light + PAD(10) | **48** |
+| block1               | block2           | block3          | length |
+| -------------------- | ---------------- | --------------- | ------ |
+| GET /cookie= DA      | TA cookie=quokka | light + PAD(11) | **48** |
+| GET /cookie=a DA     | TA cookie=quokka | light + PAD(10) | **48** |
+| GET /cookie=b DA     | TA cookie=quokka | light + PAD(10) | **48** |
+| GET /cookie=. DA     | TA cookie=quokka | light + PAD(10) | **48** |
 | GET /cookie=**q** DA | TA cookie=quokka | light + PAD(11) | **48** |
 
 In this example, the length will be always the same because if we add or remove a byte, the length will always be the same, **only the padding will change**. The attacker only see the encrypted data and he has no way to know the padding using the encrypted data.
 
 Solution: play with the specification of the CBC mode, so the padding length will be 1 by adding random value in the **GARB** variable (in the GET parameter since the attacker control the GET and POST data)
 
-| block1 | block2 | block3 | block4 | length
-|---|---|---|---|---|
-| GET /GARBc | ookie=  DATA coo | kie=quokkalight + PAD(1) | | **48** |
-| GET /GARBc | ookie=a DATA coo | kie=quokkalight | PAD(16) | 64 |
-| GET /GARBc | ookie=b DATA coo | kie=quokkalight | PAD(16) | 64 |
-| GET /GARBc | ookie=. DATA coo | kie=quokkalight | PAD(16) | 64 |
-| GET /GARBc | ookie=**q** DATA coo | kie=quokkalight + PAD(1) | | **48** |
+| block1     | block2               | block3                   | block4  | length |
+| ---------- | -------------------- | ------------------------ | ------- | ------ |
+| GET /GARBc | ookie= DATA coo      | kie=quokkalight + PAD(1) |         | **48** |
+| GET /GARBc | ookie=a DATA coo     | kie=quokkalight          | PAD(16) | 64     |
+| GET /GARBc | ookie=b DATA coo     | kie=quokkalight          | PAD(16) | 64     |
+| GET /GARBc | ookie=. DATA coo     | kie=quokkalight          | PAD(16) | 64     |
+| GET /GARBc | ookie=**q** DATA coo | kie=quokkalight + PAD(1) |         | **48** |
 
 If the byte match a pattern, the length will be the same, if it doesn't match, the length will be different.
 
@@ -138,7 +153,7 @@ python3 CRIME-cbc-poc.py
               ----/_\----
   x--------------( . )--------------x
        x|x   | |_|\_/|_| |   x|x
-        x    x           x    x     
+        x    x           x    x
 ```
 
 ## References
