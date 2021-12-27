@@ -1,7 +1,3 @@
-# CRIME-poc
-
----
-
 ## Project setup update
 
 0. Uninstall pyenv if it's old
@@ -15,150 +11,47 @@
 
 ---
 
-CRIME attack : a compression oracle attacks [CVE-2012-4929](https://cve.mitre.org/cgi-bin/cvename.cgi?name=cve-2012-4929) discovered by Juliano Rizzo and Thai Duong;
+# CVE-2012-4929 alias CRIME
 
-> In a compression oracle attack the use of adaptive data compression on a mixture of chosen plaintext and unknown plaintext can result in content-sensitive changes in the length of the compressed text that can be detected even though the content of the compressed text itself is then encrypted. This can be used in protocol attacks to detect when the injected known plaintext is even partially similar to the unknown content of a secret part of the message, greatly reducing the complexity of a search for a match for the secret text. The CRIME and BREACH attacks are examples of protocol attacks using this phenomenon.
+_Une attaque sur TLS/SSL_
 
-The CRIME attack allows you to retrieve encrypted data send by a client to a server using the length of the encrypted data. It does not allow you to retrieve the private key used to encrypt the message or the HTTP request.
+Description officielle (traduite) :
 
-## Table of Contents
+> Les protocoles TLS 1.2 et antérieurs, tels qu'utilisés par Mozilla Firefox, Google Chrome, Qt, et d'autres produits, peuvent chiffrer des données compressées sans prendre le soin dissimuler la longueur des données en clair. Cela permet, par des attaques d'homme du milieu, d'obtenir les en-têtes HTTP en clair en observant les différences de longueur entre différentes requêtes dans lesquelles une chaîne de la requête est partiellement égale à la chaîne inconnue placée dans un en-tête HTTP. Cette attaque est aussi connue sous le nom de "CRIME".
 
-1. [Explanation](#explanation)
-2. [Proof Of Concept](#proof-Of-Concept)
-   1. [RC4 stream cipher](#rc4-stream-cipher)
-   2. [CBC cipher mode](#cbc-cipher-mode)
-3. [Exploit](#exploit)
+## Principe
 
-## Explanation
+Le protocole TLS 1.2 propose d'utiliser un mécanisme de compression, DEFLATE, avant de chiffrer les données. Cet algorithme fonctionne en cherchant les motifs répétés, et en remplaçant les occurrences de ce motif par un jeton beaucoup plus court.
 
-Many articles explain how the CRIME attack works, but this is the best explanations I found on the internet :
+![Exemple de compression avec DEFLATE](./images/deflate.svg)
 
-1. [this answer: Crime how to beat the beast successor](https://security.stackexchange.com/questions/19911/crime-how-to-beat-the-beast-successor/19914#19914)
-2. [SSL Attacks Survey from NCC Group](https://www.nccgroup.trust/globalassets/our-research/us/whitepapers/ssl_attacks_survey.pdf)
+De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un motif dans une requête HTTP qu'il ne maîtrise que partiellement, dans le but de deviner ce motif octet par octet, en observant uniquement la longueur du message compressé.
 
-This attack is really not complex, the really interesting part is the implementation that is a bit different from the 'theory'.
+### Application
 
-Let's check the naive method as described in the article, it's a good way to understand how it works :
+Pour réaliser cette attaque il faut remplir 2 conditions :
 
-The attacker can control request send by the client (using javascript for example). The goal is to retrieve secret cookie. The attacker sends multiple requests like this and check the length of the encrypted data :
+- Pouvoir exécuter du JavaScript sur la machine de la victime ; par exemple la victime ouvre un site malveillant en cliquant sur une publicité
+- Pouvoir écouter les requêtes envoyées par la victime ; par exemple en faisant de l'empoisonnement de cache ARP
 
-| Reques                                    | length |
-| ----------------------------------------- | ------ |
-| GET /cookie= DATA cookie=quokkalight      | **80** |
-| GET /cookie=a DATA cookie=quokkalight     | 81     |
-| GET /cookie=b DATA cookie=quokkalight     | 81     |
-| GET /cookie=. DATA cookie=quokkalight     | 81     |
-| GET /cookie=**q** DATA cookie=quokkalight | **80** |
+En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut pas contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
 
-Since `cookie=q` match `cookie=quokkalight` from the secret cookie, the length of the encrypted data will be the same and the attacker know he found a byte.
+Par exemple, un attaquant essaie de deviner la valeur du cookie `SESSIONID` en envoyant des requêtes sur une image du site `www.banque.fr`. Après compression, ces requêtes deviennent :
 
-But this method failed some times and cannot be trusted so instead we will use another method.
-First we send a request with the char we want to find followed by multiple caracters that cannot be found in the initial request like some specials chars :`chr(i) + "#:/[@/&"`. Then we send a second request but we invert the payload like this: `"#:/[@/&" + chr(i)` and we compare the two length. If `len(enc(req1)) < len(enc(req2))` then we found a byte. This method is called: `two_tries` and it's a lot more reliable :
+![Exemple d'envoi de requêtes à www.banque.fr](./images/sessionid.svg)
 
-| Request to retrieve byte q                    | length |
-| --------------------------------------------- | ------ |
-| GET /cookie=a~#:/[@/& DATA cookie=quokkalight | 81     |
-| GET /cookie=~#:/[@/&a DATA cookie=quokkalight | 81     |
-| GET /cookie=b~#:/[@/& DATA cookie=quokkalight | 81     |
-| GET /cookie=~#:/[@/&b DATA cookie=quokkalight | 81     |
-| GET /cookie=q~#:/[@/& DATA cookie=quokkalight | **80** |
-| GET /cookie=~#:/[@/&q DATA cookie=quokkalight | **81** |
+On constate que le message est plus court d'un octet dans le dernier cas, et par conséquent, l'attaquant peut déduire que le secret commence par un `c`.
 
-The attacker found a byte !
+Cependant, l'attaque n'est pas aussi simple car le message est chiffré après avoir été compressé. Il y a deux chiffrements vulnérables : RC4 et AES-CBC.
 
-```python
-if len(enc(request1)) < len(enc(request2)):
-    print("found byte")
-```
+- Le cas de RC4 est trivial : le message chiffré fait la longueur du message compressé, l'attaque est directe et se fait comme décrite au dessus.
+- Le cas de AES-CBC est plus complexe : le message chiffré a une taille qui est toujours un multiple de 16, il faut alors jouer avec le remplissage en bord de bloc.
 
-The method `two_tries` I implemented is fully recursive but why ? some time, more than one byte can be found because the compression match with multiple patterns.
+## Preuve de Concept
 
-Lets take the secret : `cookie=quokkalight`, if we run the algorithm `two_tries` we will found the following result:
+Ici-même.
 
-```python
-result 1: cookie=quokie=quokie=quokie=quokie=quokie=
-result 2: cookie=quokkalight
-```
+## Sources
 
-The algorithm needs to take all the paths in the tree in order to find all the possible solutions.
-We can see the all the results as a tree that can be respresented like this:
-
-![img](https://user-images.githubusercontent.com/5891788/39074732-e73d07bc-44f2-11e8-952e-849e56e8f95a.png)
-
-## Proof Of Concept
-
-### RC4 stream cipher
-
-The proof of concept of CRIME attack against the stream cipher mode can be found in the file : `CRIME-RC4-poc.py`. This is an implementation in python of the previous explanation.
-
-```bash
-python3 CRIME-RC4-poc.py
-```
-
-Full demo and result:
-
-[![asciicast](https://asciinema.org/a/igA5aaqc5Mf0RMklxuPu6aPyw.png)](https://asciinema.org/a/igA5aaqc5Mf0RMklxuPu6aPyw)
-
-### CBC cipher mode
-
-When CBC cipher mode is used with AES or DES the attack is not as simple as RC4. Since everything is divided in block the attacks is a bit more tricky (not too much).
-
-![cbc](https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/CBC_encryption.svg/601px-CBC_encryption.svg.png)
-
-For example let say we use AES with CBC cipher mode, the block will be devided with a length of 16 and a padding will be added to the end if `len(data)%16 != 0`.
-In the mode CBC, it's important to note that the payload `payload=rand` will produce a length of 16 and not 12 since a padding will be add at the end of the data **before** encryption. So our previous attack cannot works.
-
-Example :
-
-| block1               | block2           | block3          | length |
-| -------------------- | ---------------- | --------------- | ------ |
-| GET /cookie= DA      | TA cookie=quokka | light + PAD(11) | **48** |
-| GET /cookie=a DA     | TA cookie=quokka | light + PAD(10) | **48** |
-| GET /cookie=b DA     | TA cookie=quokka | light + PAD(10) | **48** |
-| GET /cookie=. DA     | TA cookie=quokka | light + PAD(10) | **48** |
-| GET /cookie=**q** DA | TA cookie=quokka | light + PAD(11) | **48** |
-
-In this example, the length will be always the same because if we add or remove a byte, the length will always be the same, **only the padding will change**. The attacker only see the encrypted data and he has no way to know the padding using the encrypted data.
-
-Solution: play with the specification of the CBC mode, so the padding length will be 1 by adding random value in the **GARB** variable (in the GET parameter since the attacker control the GET and POST data)
-
-| block1     | block2               | block3                   | block4  | length |
-| ---------- | -------------------- | ------------------------ | ------- | ------ |
-| GET /GARBc | ookie= DATA coo      | kie=quokkalight + PAD(1) |         | **48** |
-| GET /GARBc | ookie=a DATA coo     | kie=quokkalight          | PAD(16) | 64     |
-| GET /GARBc | ookie=b DATA coo     | kie=quokkalight          | PAD(16) | 64     |
-| GET /GARBc | ookie=. DATA coo     | kie=quokkalight          | PAD(16) | 64     |
-| GET /GARBc | ookie=**q** DATA coo | kie=quokkalight + PAD(1) |         | **48** |
-
-If the byte match a pattern, the length will be the same, if it doesn't match, the length will be different.
-
-Next, we just have to use the same method explain in the RC4 part, we just add a step before.
-
-1. we call the function `adjust_padding()` so we can have a padding of length 1
-2. we call the function `two_tries_recursive()` and we can find the secret FLAG !
-
-```bash
-python3 CRIME-cbc-poc.py
-```
-
-[![asciicast](https://user-images.githubusercontent.com/5891788/39086213-b604a438-458e-11e8-8626-f1a78c37f410.png)](https://asciinema.org/a/6XrXwP4B4pwTxHrCdwtvz1tfX)
-
-## Exploit
-
-<del>coming really soon...</del>
-
-```
-                \     /
-                 \ _ /
-              ----/_\----
-  x--------------( . )--------------x
-       x|x   | |_|\_/|_| |   x|x
-        x    x           x    x
-```
-
-## References
-
-https://www.nccgroup.trust/globalassets/our-research/us/whitepapers/ssl_attacks_survey.pdf
-https://github.com/cloudflare/cf-nocompress
-https://www.ekoparty.org/archive/2012/CRIME_ekoparty2012.pdf
-https://security.stackexchange.com/questions/19911/crime-how-to-beat-the-beast-successor/19914#19914
+- Martial Puygrenier : https://github.com/mpgn/CRIME-poc
+- Thomas Pornin : https://security.stackexchange.com/questions/19911
