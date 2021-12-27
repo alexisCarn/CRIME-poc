@@ -9,8 +9,8 @@
 2. Install python 3.10.1 (`pyenv install 3.10.1` and `pyenv global 3.10.1`)
 3. Clone the repo and `cd` into it
 4. Create a virtual env (`python -m venv env`)
-5. Install dependencies (`python -m pip install -r requirements.txt`)
-6. Start a shell with the virtual env (`source env/bin/activate`)
+5. Start a shell with the virtual env (`source env/bin/activate`)
+6. Install dependencies (`python -m pip install -r requirements.txt`)
 7. Test the exploits! (`python CRIME-cbc-poc.py`)
 
 ---
