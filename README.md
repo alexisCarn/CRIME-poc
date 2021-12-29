@@ -29,12 +29,14 @@ De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un
 
 ## Application
 
-Pour réaliser cette attaque il faut remplir 2 conditions :
+En pratique, cette attaque peut être utilisée pour deviner le contenu d'un cookie permettant de s'authentifier sur un site internet. Nous allons utiliser cet exemple ci-après afin d'explorer l'attaque plus en profondeur.
+
+Prenons le cas de JavaScript. Pour réaliser l'attaque, il faut remplir 2 conditions :
 
 - Pouvoir exécuter du JavaScript sur la machine de la victime ; par exemple la victime ouvre un site malveillant en cliquant sur une publicité
 - Pouvoir écouter les requêtes envoyées par la victime ; par exemple en faisant de l'empoisonnement de cache ARP
 
-En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut pas contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
+En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
 
 Par exemple, un attaquant essaie de deviner la valeur du cookie `SESSIONID` en envoyant des requêtes sur une image du site `www.banque.fr`. Après compression, ces requêtes deviennent :
 
@@ -49,9 +51,14 @@ RC4 étant un chiffrement par flot, le message chiffré fait la longueur du mess
 ### AES-CBC
 Le cas de AES-CBC est plus complexe. En effet, le message chiffré a une taille qui est toujours un multiple de 16. Si on tente d'appliquer la méthode précédente naïvement, il y a fort à parier que la taille du message sera la même avant et après compression : le padding sera adapté de sorte à ce que la taille du message soit un multiple de 16.
 
+![Exemple d'un message envoyé avec AES-CBC](./images/aes-cbc.svg)
+
 Il y a cependant la possibilité d'utiliser la spécification de AES-CBC à notre avantage : Si le message à chiffrer est un multiple de 16 octets, un nouveau bloc complet sera ajouté en padding. Sinon, un padding (de longueur comprise entre 1 et 15 octets) sera ajouté pour obtenir un message de longueur un multiple de 16.
+
 Ainsi si nous ajoutons des octets (peu importe la valeur de ces octets) de sorte à ce que le message complet soit un multiple de 16 (en prenant en compte notre prédiction) alors nous aurons un bloc complet de padding à la fin du message chiffré.
-Nous pouvons maintenant utiliser la force brute sur l'octet attaqué et nous verrons bien une différence de taille si nous l'octet proposé est correct : si on devine le bon octet, il sera compressé et nous obtiendrons un chiffré d'une taille réduite de 16.
+
+Nous pouvons maintenant utiliser le bruteforce sur l'octet attaqué et nous verrons bien une différence de taille si nous l'octet proposé est correct : si on devine le bon octet, il sera compressé et nous obtiendrons un chiffré d'une taille réduite de 16 (et un octet de padding aura été ajouté à la fin du message).
+
 Nous pouvons maintenant continuer l'attaque jusqu'à déterminer tous les octets à déterminer en réitérant l'opération.
 
 ## Prévention
