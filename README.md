@@ -27,7 +27,7 @@ Le protocole TLS 1.2 propose d'utiliser un mécanisme de compression, DEFLATE, a
 
 De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un motif dans une requête HTTP qu'il ne maîtrise que partiellement, dans le but de deviner ce motif octet par octet, en observant uniquement la longueur du message compressé.
 
-### Application
+## Application
 
 Pour réaliser cette attaque il faut remplir 2 conditions :
 
@@ -44,8 +44,19 @@ On constate que le message est plus court d'un octet dans le dernier cas, et par
 
 Cependant, l'attaque n'est pas aussi simple car le message est chiffré après avoir été compressé. Il y a deux chiffrements vulnérables : RC4 et AES-CBC.
 
-- Le cas de RC4 est trivial : le message chiffré fait la longueur du message compressé, l'attaque est directe et se fait comme décrite au dessus.
-- Le cas de AES-CBC est plus complexe : le message chiffré a une taille qui est toujours un multiple de 16, il faut alors jouer avec le remplissage en bord de bloc.
+### RC4
+RC4 étant un chiffrement par flot, le message chiffré fait la longueur du message compressé. Ainsi, l'attaque est directe et se fait comme décrite au dessus.
+### AES-CBC
+Le cas de AES-CBC est plus complexe. En effet, le message chiffré a une taille qui est toujours un multiple de 16. Si on tente d'appliquer la méthode précédente naïvement, il y a fort à parier que la taille du message sera la même avant et après compression : le padding sera adapté de sorte à ce que la taille du message soit un multiple de 16.
+
+Il y a cependant la possibilité d'utiliser la spécification de AES-CBC à notre avantage : Si le message à chiffrer est un multiple de 16 octets, un nouveau bloc complet sera ajouté en padding. Sinon, un padding (de longueur comprise entre 1 et 15 octets) sera ajouté pour obtenir un message de longueur un multiple de 16.
+Ainsi si nous ajoutons des octets (peu importe la valeur de ces octets) de sorte à ce que le message complet soit un multiple de 16 (en prenant en compte notre prédiction) alors nous aurons un bloc complet de padding à la fin du message chiffré.
+Nous pouvons maintenant utiliser la force brute sur l'octet attaqué et nous verrons bien une différence de taille si nous l'octet proposé est correct : si on devine le bon octet, il sera compressé et nous obtiendrons un chiffré d'une taille réduite de 16.
+Nous pouvons maintenant continuer l'attaque jusqu'à déterminer tous les octets à déterminer en réitérant l'opération.
+
+## Prévention
+
+La prévention de l'attaque CRIME est plutôt simple : il suffit que le client (ou le serveur) indique qu'il ne souhaite pas faire de compression. Ainsi il devient impossible d'exploiter la compression pour déterminer certains octets du message.
 
 ## Preuve de Concept
 
