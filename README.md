@@ -27,6 +27,14 @@ Le protocole TLS 1.2 propose d'utiliser un mécanisme de compression, DEFLATE, a
 
 De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un motif dans une requête HTTP qu'il ne maîtrise que partiellement, dans le but de deviner ce motif octet par octet, en observant uniquement la longueur du message compressé.
 
+## Architecture de l'attaque
+
+L'attaquant a besoin de 2 choses pour réaliser l'attaque :
+- avoir du code qui tourne sur la machine victime : par exemple du javascript parce que la victime s'est connectée au site malveillant de l'attaquant
+- pouvoir lire les paquets envoyés par la machine victime : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
+
+![Architecture de l'attaque CRIME](./images/archi.jpeg)
+
 ## Application
 
 En pratique, cette attaque peut être utilisée pour deviner le contenu d'un cookie permettant de s'authentifier sur un site internet. Nous allons utiliser cet exemple ci-après afin d'explorer l'attaque plus en profondeur.
