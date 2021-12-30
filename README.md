@@ -31,10 +31,12 @@ De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un
 
 En pratique, cette attaque peut être utilisée pour deviner le contenu d'un cookie permettant de s'authentifier sur un site internet. Nous allons utiliser cet exemple ci-après afin d'explorer l'attaque plus en profondeur.
 
-Prenons le cas de JavaScript. Pour réaliser l'attaque, il faut remplir 2 conditions :
+Pour réaliser l'attaque, il faut remplir 2 conditions :
 
-- Pouvoir exécuter du JavaScript sur la machine de la victime ; par exemple la victime ouvre un site malveillant en cliquant sur une publicité
-- Pouvoir écouter les requêtes envoyées par la victime ; par exemple en faisant de l'empoisonnement de cache ARP
+- modifier les requêtes qui vont être chiffrés par TLS par la machine victime : par exemple avec du code Javascript qui tourne sur la machine victime car elle s'est connectée à un site malveillant en cliquant sur une publicité
+- pouvoir observer les requêtes envoyées par la vicitme via TLS : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
+
+![Architecture de l'attaque CRIME](./images/archi.svg)
 
 En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
 
