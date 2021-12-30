@@ -29,9 +29,9 @@ De la même façon, un attaquant peut observer si l'algorithme DEFLATE trouve un
 
 ## Architecture de l'attaque
 
-L'attaquant a besoin de 2 choses pour réaliser l'attaque :
-- avoir du code qui tourne sur la machine victime : par exemple du javascript parce que la victime s'est connectée au site malveillant de l'attaquant
-- pouvoir lire les paquets envoyés par la machine victime : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
+Pour réaliser l'attaque, il faut remplir 2 conditions :
+- modifier les paquets qui vont être chiffrés par TLS sur la machine victime : par exemple avec du code javascript qui tourne sur la machine victime car elle s'est connectée à un site malveillant
+- pouvoir observer les paquets envoyés par la machine victime : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
 
 ![Architecture de l'attaque CRIME](./images/archi.svg)
 
