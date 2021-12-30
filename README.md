@@ -38,7 +38,6 @@ Pour réaliser l'attaque, il faut remplir 2 conditions :
 
 ![Architecture de l'attaque CRIME](./images/archi.svg)
 
-
 En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
 
 Par exemple, un attaquant essaie de deviner la valeur du cookie `SESSIONID` en envoyant des requêtes sur une image du site `www.banque.fr`. Après compression, ces requêtes deviennent :
