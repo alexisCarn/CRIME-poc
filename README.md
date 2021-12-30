@@ -33,7 +33,7 @@ L'attaquant a besoin de 2 choses pour réaliser l'attaque :
 - avoir du code qui tourne sur la machine victime : par exemple du javascript parce que la victime s'est connectée au site malveillant de l'attaquant
 - pouvoir lire les paquets envoyés par la machine victime : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
 
-![Architecture de l'attaque CRIME](./images/archi.jpg)
+![Architecture de l'attaque CRIME](./images/archi.svg)
 
 ## Application
 
