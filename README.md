@@ -36,7 +36,7 @@ Pour réaliser l'attaque, il faut remplir 2 conditions :
 - modifier les requêtes qui vont être chiffrés par TLS par la machine victime : par exemple avec du code Javascript qui tourne sur la machine victime car elle s'est connectée à un site malveillant en cliquant sur une publicité
 - pouvoir observer les requêtes envoyées par la vicitme via TLS : en étant sur le même réseau local que la victime ou en ayant pris le contrôle d'un routeur proche du serveur sur lequel la victime se connecte avec son cookie
 
-![Architecture de l'attaque CRIME](./images/archi.svg)
+![Architecture de l'attaque CRIME](./images/archi.png)
 
 En JavaScript, un attaquant peut envoyer une requête à n'importe quel site, mais ne peut contrôler qu'un seul en-tête de la requête, l'adresse de destination, les autres en-têtes étant gérés par le navigateur.
 
